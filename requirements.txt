@@ -1,4 +1,14 @@
 Flask
+Flask
+Flask-BasicAuth
+Flask-Cors
+Flask-Login
+Flask-Migrate
+Flask-SQLAlchemy
+Flask-WTF
 openai
 Markdown
 gunicorn
+SQLAlchemy
+sqlparse
+Werkzeug
