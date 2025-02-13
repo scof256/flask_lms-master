@@ -1,0 +1,198 @@
+
+
+{% extends "base.html" %}
+{% block title %}Student Dashboard - AI Research LMS{% endblock %}
+
+{% block extra_css %}
+<link href="{{ url_for('static', filename='css/styles2.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="student-dashboard">
+  <!-- Improved Toggle Button -->
+  <button id="toggle-sidebar-btn">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <!-- Curriculum Sidebar -->
+  <div id="curriculum-sidebar">
+    <div id="question-list"></div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container-fluid">
+    <!-- Progress Overview -->
+    <div class="row mb-4">
+      <div class="col-md-8">
+        <h2 class="mb-1">Welcome, {{ session.username }}! <span id="pagination" class="ms-2">Day 1/50</span></h2>
+        <p class="centered-text">Continue your learning journey in AI and Prompt Engineering</p>
+      </div>
+      <div class="col-md-4 text-md-end">
+        <div class="progress" style="height: 8px;">
+          {% set total_progress = ((completed_questions + completed_prompts) / (total_questions + total_prompts) * 100)|round if (total_questions + total_prompts) > 0 else 0 %}
+          <div class="progress-bar" role="progressbar" style="width: {{ total_progress }}%"></div>
+        </div>
+        <small class="text-muted">Overall Progress: {{ total_progress }}%</small>
+      </div>
+    </div>
+
+    <!-- Progress Stats -->
+    <div class="row g-4 mb-4">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="stats-card text-center">
+            <i class="fas fa-tasks fa-2x text-primary mb-2"></i>
+            <h3>{{ completed_questions }}/{{ total_questions }}</h3>
+            <p class="text-muted mb-0">Questions Completed</p>
+            <div class="progress mt-3" style="height: 4px;">
+              <div class="progress-bar bg-primary" style="width: {{ (completed_questions/(total_questions|default(1))) * 100 | round if total_questions else 0 }}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="stats-card text-center">
+            <i class="fas fa-lightbulb fa-2x text-success mb-2"></i>
+            <h3>{{ completed_prompts }}/{{ total_prompts }}</h3>
+            <p class="text-muted mb-0">Prompts Completed</p>
+            <div class="progress mt-3" style="height: 4px;">
+              <div class="progress-bar bg-success" style="width: {{ (completed_prompts/(total_prompts|default(1))) * 100 | round if total_prompts else 0 }}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="stats-card text-center">
+            <i class="fas fa-check-circle fa-2x text-warning mb-2"></i>
+            <h3>{{ (correct_answers/(completed_questions|default(1))) * 100 | round if completed_questions else 0 }}%</h3>
+            <p class="text-muted mb-0">Accuracy Rate</p>
+            <div class="progress mt-3" style="height: 4px;">
+              <div class="progress-bar bg-warning" style="width: {{ (correct_answers/(completed_questions|default(1))) * 100 | round if completed_questions else 0 }}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="row">
+      <!-- Question & Prompt Area -->
+      <div class="col-lg-12">
+        <!-- Question Container -->
+        <div class="card mb-4">
+          <div class="card-body">
+            <div id="question-container" class="question-box">
+              <h3 id="question-text" class="question-title mb-3">
+                How is AI transforming different industries (healthcare, finance, education, etc.)?
+              </h3>
+              <div id="options-container" class="options-container d-grid gap-3">
+                <button type="button" class="option btn btn-outline-secondary">
+                  By only replacing outdated computer systems without any added benefits
+                </button>
+                <button type="button" class="option btn btn-outline-secondary">
+                  By creating more bureaucratic hurdles in every industry
+                </button>
+                <button type="button" class="option btn btn-outline-secondary">
+                  By eliminating human jobs entirely in every sector
+                </button>
+                <button type="button" class="option btn btn-outline-success">
+                  By automating tasks, enhancing data analysis, personalizing services, and improving decision-making processes
+                </button>
+              </div>
+              <div id="feedback" class="feedback mt-3"></div>
+            </div>
+
+            <!-- Prompt Task Container -->
+            <div id="prompt-task-container" class="prompt-task-box" style="display: block;">
+              <h3 class="prompt-task-title mb-3">Prompt Task</h3>
+              <div id="prompt-task-text" class="prompt-task-text mb-3">
+                Craft a prompt that instructs an AI to generate a concise summary of various content types—for example, a news article, a multi‑page report, legal documents, customer feedback, research articles, and executive briefings.
+              </div>
+              <div class="small-chatbot">
+                <textarea id="small-chat-input" class="form-control mb-2 auto-expand" rows="3" placeholder="Paste prompt task here or write your own prompt..."></textarea>
+                <div class="d-flex gap-2 flex-wrap">
+                  <button class="btn btn-primary" onclick="generateFromSmallChat(false)">Generate Simple Response</button>
+                  <button class="btn btn-secondary" onclick="generateFromSmallChat(true)">Generate Advanced Response</button>
+                </div>
+                <div id="small-chat-response" class="mt-3"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tutor Section -->
+    <div class="card mt-4">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-robot me-2"></i>AI Tutor</h5>
+        <button id="clear-btn" class="btn btn-sm btn-danger" onclick="clearTutor()">Clear</button>
+      </div>
+      <div class="card-body">
+        <div id="chat-window" class="mb-3"></div>
+        <div class="input-group">
+          <textarea id="user-question" class="form-control auto-expand" rows="2" placeholder="Ask the tutor..."></textarea>
+        </div>
+        <div class="d-flex justify-content-between mt-2">
+          <div>
+            <button class="btn btn-primary me-2" onclick="askTutor()" id="ask-btn">Ask</button>
+            <button class="btn btn-secondary" onclick="pasteQuestion()" id="paste-btn">Paste Question/Task</button>
+          </div>
+          <button id="copy-btn" class="btn btn-secondary" onclick="copyChat()">Copy Chat</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- How To Use Hints Section -->
+    <div class="hints-section">
+      <h4>How to Use This Dashboard</h4>
+      <ul>
+        <li><strong>Questions Answering</strong>
+          <ul>
+            <li>Read the question and pick the right answer to automatically move to the prompt task.</li>
+            <li>If you don't know the answer, use the AI Tutor to guide you.</li>
+            <li>Click "Paste Question" to automatically copy the question, then click "Ask" to get help.</li>
+            <li>Read the provided explanation and answer the questions accordingly.</li>
+          </ul>
+        </li>
+        <li><strong>Prompt Tasks</strong>
+          <ul>
+            <li>Type the prompt you've created in the AI Tutor to see if it generates the expected answers.</li>
+            <li>If you need an example, use the "Generate Simple Response" or "Generate Advanced Response" buttons.</li>
+            <li>You can copy the example prompt automatically using the "Copy Prompt" feature and try it out.</li>
+            <li>If you use a generated prompt, remove it and create your own to learn and practice prompt creation for different challenges.</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- Navigation Buttons -->
+  <div class="navigation-buttons">
+    <button id="prev-btn" class="nav-btn" onclick="loadPrevious()">Previous</button>
+    <button id="next-btn" class="nav-btn" onclick="loadNext()">Next</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/script2.js') }}"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const textareas = document.querySelectorAll("textarea.auto-expand");
+    textareas.forEach(textarea => {
+      const adjustTextareaHeight = function() {
+        setTimeout(() => {
+          this.style.height = "auto";
+          this.style.height = this.scrollHeight + "px";
+        }, 0);
+      };
+      textarea.addEventListener("input", adjustTextareaHeight);
+      textarea.addEventListener("paste", adjustTextareaHeight);
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Login - AI Research LMS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center min-vh-75">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white text-center py-4">
+                <i class="fas fa-brain text-primary fa-2x mb-3"></i>
+                <h4 class="mb-0">Welcome Back</h4>
+                <p class="text-muted small mb-0">Sign in to continue to AI Research LMS</p>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-user text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-lock text-muted"></i>
+                            </span>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                    </button>
+                </form>
+            </div>
+            <div class="card-footer bg-white text-center py-3">
+                <p class="text-muted mb-0">Default credentials:</p>
+                <small class="d-block text-muted">Admin: admin / admin123</small>
+                <small class="d-block text-muted">Student: student / student123</small>
+                <!-- Added signup link here -->
+                <p class="text-muted mt-2 mb-0">Don't have an account? <a href="{{ url_for('signup') }}">Sign Up</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

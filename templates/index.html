@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Welcome - AI Research LMS{% endblock %}
+
+{% block content %}
+<!-- Landing Page Content -->
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 text-center">
+        <i class="fas fa-brain text-primary fa-4x mb-4"></i>
+        <h1 class="mb-4">AI Research LMS</h1>
+        <p class="lead mb-4">Learn AI concepts and master prompt engineering through interactive lessons</p>
+        {% if 'user_id' not in session %}
+        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-sign-in-alt me-2"></i>Get Started
+        </a>
+        {% else %}
+        <a href="{{ url_for('student_dashboard' if session.role == 'student' else 'admin_dashboard') }}" 
+           class="btn btn-primary btn-lg">
+            <i class="fas fa-chevron-right me-2"></i>Continue to Dashboard
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-graduation-cap fa-2x text-primary mb-3"></i>
+                        <h5 class="card-title">Learn AI Concepts</h5>
+                        <p class="card-text">Master fundamental AI concepts through interactive lessons</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-lightbulb fa-2x text-warning mb-3"></i>
+                        <h5 class="card-title">Practice Prompts</h5>
+                        <p class="card-text">Develop your prompt engineering skills with real exercises</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-robot fa-2x text-success mb-3"></i>
+                        <h5 class="card-title">AI Tutor</h5>
+                        <p class="card-text">Get help from our AI tutor whenever you need assistance</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

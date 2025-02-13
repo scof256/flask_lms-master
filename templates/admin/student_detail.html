@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Student Details - AI Research LMS{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary mb-3">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+        <h2 class="mb-1">{{ student.username }}'s Progress</h2>
+        <p class="text-muted">{{ student.email }}</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Progress Summary -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Progress Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="progress-stat p-3 text-center">
+                            <h4>Questions Progress</h4>
+                            <div class="progress mb-2" style="height: 10px;">
+                                {% set question_percent = (progress|selectattr('question_id')|list|length / 50 * 100)|round %}
+                                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ question_percent }}%"></div>
+                            </div>
+                            <p class="mb-0">{{ progress|selectattr('question_id')|list|length }} of 50 completed</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="progress-stat p-3 text-center">
+                            <h4>Prompts Progress</h4>
+                            <div class="progress mb-2" style="height: 10px;">
+                                {% set prompt_percent = (progress|selectattr('prompt_id')|list|length / 50 * 100)|round %}
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ prompt_percent }}%"></div>
+                            </div>
+                            <p class="mb-0">{{ progress|selectattr('prompt_id')|list|length }} of 50 completed</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="progress-stat p-3 text-center">
+                            <h4>Accuracy Rate</h4>
+                            <div class="progress mb-2" style="height: 10px;">
+                                {% set correct = progress|selectattr('is_correct', 'equalto', 1)|list|length %}
+                                {% set total = progress|selectattr('question_id')|list|length %}
+                                {% set accuracy = (correct / total * 100)|round if total > 0 else 0 %}
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: {{ accuracy }}%"></div>
+                            </div>
+                            <p class="mb-0">{{ accuracy }}% correct answers</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Activity Type</th>
+                                <th>Details</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in progress %}
+                            <tr>
+                                <td>{{ item.created_at.replace('T', ' ').split('.')[0] }}</td>
+                                <td>
+                                    {% if item.question_id %}
+                                    <span class="badge bg-primary">Question</span>
+                                    {% else %}
+                                    <span class="badge bg-success">Prompt</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.question_id %}
+                                        {{ item.question }}
+                                    {% else %}
+                                        Prompt Exercise #{{ item.prompt_id }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.question_id %}
+                                        {% if item.is_correct %}
+                                        <span class="text-success"><i class="fas fa-check-circle"></i> Correct</span>
+                                        {% else %}
+                                        <span class="text-danger"><i class="fas fa-times-circle"></i> Incorrect</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-primary"><i class="fas fa-check"></i> Completed</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add any JavaScript for student detail page here
+});
+</script>
+{% endblock %}
