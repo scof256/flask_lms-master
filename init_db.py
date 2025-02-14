@@ -1,3 +1,4 @@
+# /flask_lms-master/init_db.py
 import os
 import sqlite3
 from werkzeug.security import generate_password_hash
@@ -14,6 +15,7 @@ c = conn.cursor()
 c.executescript('''
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS student_progress;
+DROP TABLE IF EXISTS tutor_chats;  -- Drop existing table if it exists
 
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,7 +23,7 @@ CREATE TABLE users (
     password TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     role TEXT NOT NULL,
-    approved INTEGER DEFAULT 0  -- ADDED 'approved' column here
+    approved INTEGER DEFAULT 0
 );
 
 CREATE TABLE student_progress (
@@ -35,16 +37,27 @@ CREATE TABLE student_progress (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
+
+CREATE TABLE tutor_chats (  -- New table for tutor chats
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    prompt_id INTEGER,  -- Link to the prompt (can be NULL for general questions)
+    message TEXT NOT NULL,
+    role TEXT NOT NULL,  -- 'user' or 'assistant'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id),
+    FOREIGN KEY (prompt_id) REFERENCES student_progress (prompt_id) -- Corrected foreign key
+);
 ''')
 
 # Create initial admin and test student, now including 'approved' status
 admin_password = generate_password_hash('admin123')
 student_password = generate_password_hash('student123')
 
-c.execute('INSERT INTO users (username, password, email, role, approved) VALUES (?, ?, ?, ?, ?)',  # Modified INSERT to include 'approved'
-         ('admin', admin_password, 'admin@example.com', 'admin', 1)) # Admin is approved by default
-c.execute('INSERT INTO users (username, password, email, role, approved) VALUES (?, ?, ?, ?, ?)',  # Modified INSERT to include 'approved'
-         ('student', student_password, 'student@example.com', 'student', 0)) # Student is NOT approved by default
+c.execute('INSERT INTO users (username, password, email, role, approved) VALUES (?, ?, ?, ?, ?)',
+         ('admin', admin_password, 'admin@example.com', 'admin', 1))
+c.execute('INSERT INTO users (username, password, email, role, approved) VALUES (?, ?, ?, ?, ?)',
+         ('student', student_password, 'student@example.com', 'student', 0))
 
 conn.commit()
 conn.close()

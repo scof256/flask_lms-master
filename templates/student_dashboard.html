@@ -1,10 +1,52 @@
-
-
 {% extends "base.html" %}
 {% block title %}Student Dashboard - AI Research LMS{% endblock %}
 
 {% block extra_css %}
 <link href="{{ url_for('static', filename='css/styles2.css') }}" rel="stylesheet">
+<style>
+/* --- Chat Styling --- */
+.chat-window {
+    background-color: #fff; /* White background */
+    border: 1px solid #dee2e6; /* Light gray border */
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-y: auto; /* Enable vertical scrolling */
+    height: 300px; /* Set a fixed height (adjust as needed) */
+    display: flex;        /* Use Flexbox for layout */
+    flex-direction: column; /* Stack messages vertically */
+}
+
+.chat-bubble {
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    border-radius: 0.5rem;
+    max-width: 80%; /* Limit bubble width */
+    word-wrap: break-word; /* Handle long words */
+    align-self: flex-start; /* Default alignment (for tutor) */
+}
+
+.user-bubble {
+    background-color: #e7f7ff;
+    border: 1px solid #cce7f9;
+    float: right;
+    max-width: 75%;
+
+}
+
+.tutor-bubble {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    float: left;
+    max-width: 75%;
+}
+/* Auto-expanding Textarea */
+textarea.auto-expand {
+    overflow-y: hidden; /* Hide vertical scrollbar initially */
+    resize: none;      /* Disable manual resizing */
+    min-height: 3em;    /* Initial height (3 lines) */
+    line-height: 1.2em;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -133,7 +175,7 @@
       <div class="card-body">
         <div id="chat-window" class="mb-3"></div>
         <div class="input-group">
-          <textarea id="user-question" class="form-control auto-expand" rows="2" placeholder="Ask the tutor..."></textarea>
+          <textarea id="user-question" class="form-control auto-expand" rows="3" placeholder="Ask the tutor... Or Paste your prompt"></textarea>
         </div>
         <div class="d-flex justify-content-between mt-2">
           <div>
@@ -182,16 +224,16 @@
 <script src="{{ url_for('static', filename='js/script2.js') }}"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function() {
+    // Auto-expanding Textarea
     const textareas = document.querySelectorAll("textarea.auto-expand");
     textareas.forEach(textarea => {
-      const adjustTextareaHeight = function() {
-        setTimeout(() => {
-          this.style.height = "auto";
-          this.style.height = this.scrollHeight + "px";
-        }, 0);
-      };
-      textarea.addEventListener("input", adjustTextareaHeight);
-      textarea.addEventListener("paste", adjustTextareaHeight);
+        const adjustTextareaHeight = function() {
+            this.style.height = "auto";  // Reset height
+            this.style.height = (this.scrollHeight) + "px"; // Set to scrollHeight
+        };
+        textarea.addEventListener("input", adjustTextareaHeight);
+        // Trigger on page load in case of pre-filled content
+        adjustTextareaHeight.call(textarea);
     });
   });
 </script>

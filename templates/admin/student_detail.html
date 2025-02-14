@@ -1,113 +1,479 @@
+<!-- flask_lms-master/templates/admin/student_detail.html -->
+
 {% extends "base.html" %}
 {% block title %}Student Details - AI Research LMS{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary mb-3">
-            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
-        </a>
-        <h2 class="mb-1">{{ student.username }}'s Progress</h2>
-        <p class="text-muted">{{ student.email }}</p>
-    </div>
-</div>
+{% block extra_css %}
+<style>
+/* -----------------------
+   Improved Aesthetic Style
+   ----------------------- */
 
-<div class="row g-4">
-    <!-- Progress Summary -->
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-white">
-                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Progress Summary</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="progress-stat p-3 text-center">
-                            <h4>Questions Progress</h4>
-                            <div class="progress mb-2" style="height: 10px;">
-                                {% set question_percent = (progress|selectattr('question_id')|list|length / 50 * 100)|round %}
-                                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ question_percent }}%"></div>
+/* CSS Variables for easier theme management */
+:root {
+    --primary-color: #4B9CE2;  /* Adjust to your preferred primary color */
+    --secondary-color: #FFC107;
+    --success-color: #28A745;
+    --danger-color: #DC3545;
+    --warning-color: #FFC107;
+    --light-color: #F8F9FA;
+    --dark-color: #343A40;
+    --text-color: #343A40;
+    --font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* --- Global Resets/Improvements --- */
+body {
+    font-family: var(--font-family);
+    background: linear-gradient(to bottom right, #FFFFFF, #EEF3F7);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 1800px;
+    margin-top: 20px;
+    margin-bottom: 50px;
+}
+
+/* Headings */
+h2, h3, h4, h5, h6 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+/* Buttons */
+.btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transition: all 0.2s ease;
+}
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+/* --- Card Styling --- */
+.card {
+    border: none;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.card-header {
+    background-color: #fff;
+    border-bottom: none;
+    border-radius: 0.5rem 0.5rem 0 0;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e5e5e5;
+}
+.card-body {
+    background-color: #fff;
+    border-radius: 0 0 0.5rem 0.5rem;
+    padding: 1.5rem;
+}
+
+/* --- Progress Summary --- */
+.progress-stat {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+.progress-stat h4 {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+    color: var(--dark-color);
+    font-weight: 600;
+}
+.progress {
+    height: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.375rem;
+}
+.progress-bar {
+    transition: width 0.4s ease;
+}
+
+/* --- Table Styles --- */
+.table-responsive {
+    overflow-x: auto;
+}
+.table {
+    background-color: #fff;
+    border-collapse: collapse;
+    margin-bottom: 0;
+    width: 100%;
+}
+.table th {
+    background-color: var(--light-color);
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: var(--dark-color);
+    text-align: left;
+    padding: 0.75rem;
+}
+.table td {
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.75rem;
+    vertical-align: middle;
+}
+.table tbody tr:hover {
+    background-color: #f8f8f8;
+    transition: background-color 0.2s;
+}
+
+/* Badges */
+.badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+    border-radius: 0.25rem;
+}
+.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+.bg-success {
+    background-color: var(--success-color) !important;
+}
+.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+/* Prompt Text */
+.prompt-text {
+    font-style: italic;
+    color: var(--primary-color);
+    margin-bottom: 0.5em;
+    display: block;
+    font-weight: 500;
+}
+
+/* Response Link */
+.response-link {
+    margin-left: 0.5rem;
+    color: #043964;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.response-link:hover {
+    text-decoration: underline;
+    color: #041e33;
+}
+
+/* --- Tutor Chat History --- */
+.chat-history {
+    border: 1px solid #ddd;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: #fff;
+    max-height: 550px;
+    overflow-y: auto;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+.chat-message {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    clear: both;
+    position: relative;
+}
+.user-message {
+    background-color: #e7f7ff;
+    border: 1px solid #cce7f9;
+    float: right;
+    max-width: 75%;
+}
+.assistant-message {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    float: left;
+    max-width: 75%;
+}
+.message-icon {
+    margin-right: 0.5rem;
+    vertical-align: middle;
+    font-size: 1.1rem;
+}
+.chat-message p {
+    margin: 0;
+}
+
+/* --- Modal --- */
+.modal-dialog {
+    max-width: 800px;
+}
+.modal-content {
+    border-radius: 0.5rem;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+}
+.modal-header {
+    border-bottom: 1px solid #dee2e6;
+    padding: 1rem;
+}
+.modal-title {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+.modal-body {
+    padding: 1.5rem;
+}
+.modal-footer {
+    border-top: 1px solid #dee2e6;
+    padding: 1rem;
+}
+
+/* Utility Classes */
+.text-muted {
+    color: #6c757d !important;
+}
+.text-success {
+    color: var(--success-color) !important;
+    font-weight: 600;
+}
+.text-danger {
+    color: var(--danger-color) !important;
+    font-weight: 600;
+}
+.text-warning {
+    color: var(--warning-color) !important;
+}
+.text-primary {
+    color: var(--primary-color) !important;
+}
+.me-2 {
+    margin-right: 0.5rem !important;
+}
+.mb-0 {
+    margin-bottom: 0 !important;
+}
+.mb-1 {
+    margin-bottom: 0.25rem !important;
+}
+.mb-3 {
+    margin-bottom: 1rem !important;
+}
+.mb-4 {
+    margin-bottom: 1.5rem !important;
+}
+.mt-4 {
+    margin-top: 1.5rem !important;
+}
+.g-4 > [class^='col-'] {
+    margin-bottom: 1.5rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 767.98px) {
+    .progress-stat h4 {
+        font-size: 1rem;
+    }
+    .progress-stat {
+        margin-bottom: 1rem;
+    }
+    .chat-history {
+        max-height: 300px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Top Bar -->
+    <div class="row mb-4">
+        <div class="col">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary mb-3">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+            <h2 class="mb-1">{{ student.username }}'s Progress</h2>
+            <p class="text-muted">{{ student.email }}</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Progress Summary -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Progress Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Questions Progress -->
+                        <div class="col-md-4">
+                            <div class="progress-stat">
+                                <h4>Questions Progress</h4>
+                                <div class="progress mb-2">
+                                    {% set question_percent = (progress|selectattr('question_id')|list|length / 50 * 100)|round %}
+                                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ question_percent }}%"></div>
+                                </div>
+                                <p class="mb-0">{{ progress|selectattr('question_id')|list|length }} of 50 completed</p>
                             </div>
-                            <p class="mb-0">{{ progress|selectattr('question_id')|list|length }} of 50 completed</p>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="progress-stat p-3 text-center">
-                            <h4>Prompts Progress</h4>
-                            <div class="progress mb-2" style="height: 10px;">
-                                {% set prompt_percent = (progress|selectattr('prompt_id')|list|length / 50 * 100)|round %}
-                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ prompt_percent }}%"></div>
+                        <!-- Prompts Progress -->
+                        <div class="col-md-4">
+                            <div class="progress-stat">
+                                <h4>Prompts Progress</h4>
+                                <div class="progress mb-2">
+                                    {% set prompt_percent = (progress|selectattr('prompt_id')|list|length / 50 * 100)|round %}
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ prompt_percent }}%"></div>
+                                </div>
+                                <p class="mb-0">{{ progress|selectattr('prompt_id')|list|length }} of 50 completed</p>
                             </div>
-                            <p class="mb-0">{{ progress|selectattr('prompt_id')|list|length }} of 50 completed</p>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="progress-stat p-3 text-center">
-                            <h4>Accuracy Rate</h4>
-                            <div class="progress mb-2" style="height: 10px;">
-                                {% set correct = progress|selectattr('is_correct', 'equalto', 1)|list|length %}
-                                {% set total = progress|selectattr('question_id')|list|length %}
-                                {% set accuracy = (correct / total * 100)|round if total > 0 else 0 %}
-                                <div class="progress-bar bg-warning" role="progressbar" style="width: {{ accuracy }}%"></div>
+                        <!-- Accuracy Rate -->
+                        <div class="col-md-4">
+                            <div class="progress-stat">
+                                <h4>Accuracy Rate</h4>
+                                <div class="progress mb-2">
+                                    {% set correct = progress|selectattr('is_correct', 'equalto', 1)|list|length %}
+                                    {% set total = progress|selectattr('question_id')|list|length %}
+                                    {% set accuracy = (correct / total * 100)|round if total > 0 else 0 %}
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ accuracy }}%"></div>
+                                </div>
+                                <p class="mb-0">{{ accuracy }}% correct answers</p>
                             </div>
-                            <p class="mb-0">{{ accuracy }}% correct answers</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Recent Activity -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Activity Type</th>
+                                    <th>Details</th>
+                                    <th>Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in progress %}
+                                <tr>
+                                    <td>{{ item.created_at.replace('T', ' ').split('.')[0] }}</td>
+                                    <td>
+                                        {% if item.question_id %}
+                                        <span class="badge bg-primary">Question</span>
+                                        {% else %}
+                                        <span class="badge bg-success">Prompt</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.question_id %}
+                                            {{ item.question }}
+                                        {% else %}
+                                            <!-- Display the prompt text directly -->
+                                            <span class="prompt-text">{{ item.prompt_text | safe }}</span>
+                                            <!-- Link to view the student's RESPONSE and related tutor chat -->
+                                            <a href="#" class="response-link" 
+                                               data-prompt-id="{{ item.prompt_id }}" 
+                                               data-response="{{ item.generated_response}}" 
+                                               data-bs-toggle="modal" 
+                                               data-bs-target="#responseModal">
+                                                View Responses
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.question_id %}
+                                            {% if item.is_correct %}
+                                            <span class="text-success">
+                                                <i class="fas fa-check-circle"></i> Correct
+                                            </span>
+                                            {% else %}
+                                            <span class="text-danger">
+                                                <i class="fas fa-times-circle"></i> Incorrect
+                                            </span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-primary">
+                                                <i class="fas fa-check"></i> Completed
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tutor Chat History (ALL chats - for context) -->
+        <div class="col-12 mt-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>Tutor Chat History (All)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if tutor_history %}
+                    <div class="chat-history">
+                        {% for message in tutor_history %}
+                        <div class="chat-message {% if message.role == 'user' %}user-message{% else %}assistant-message{% endif %}">
+                            <p>
+                                <span class="message-icon">
+                                    {% if message.role == 'user' %}
+                                    <i class="fas fa-user"></i>
+                                    {% else %}
+                                    <i class="fas fa-robot"></i>
+                                    {% endif %}
+                                </span>
+                                <strong>{{ message.role.capitalize() }}:</strong> {{ message.message | safe }}
+                            </p>
+                            <small class="text-muted">{{ message.created_at }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p>No tutor chat history available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Recent Activity -->
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-white">
-                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Activity Type</th>
-                                <th>Details</th>
-                                <th>Result</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in progress %}
-                            <tr>
-                                <td>{{ item.created_at.replace('T', ' ').split('.')[0] }}</td>
-                                <td>
-                                    {% if item.question_id %}
-                                    <span class="badge bg-primary">Question</span>
-                                    {% else %}
-                                    <span class="badge bg-success">Prompt</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if item.question_id %}
-                                        {{ item.question }}
-                                    {% else %}
-                                        Prompt Exercise #{{ item.prompt_id }}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if item.question_id %}
-                                        {% if item.is_correct %}
-                                        <span class="text-success"><i class="fas fa-check-circle"></i> Correct</span>
-                                        {% else %}
-                                        <span class="text-danger"><i class="fas fa-times-circle"></i> Incorrect</span>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="text-primary"><i class="fas fa-check"></i> Completed</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+    <!-- Student Response and Related Tutor Chat Modal -->
+    <div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="responseModalLabel">Student Response & Tutor Chat</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h4>Student's Response:</h4>
+                    <p id="responseModalText"></p>
+
+                    <h4 class="mt-4">Related Tutor Chat:</h4>
+                    <div class="chat-history" id="responseModalChat">
+                        <!-- Tutor chat will be inserted here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -118,7 +484,58 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Add any JavaScript for student detail page here
+    // Make tutor_history available globally
+    window.tutorHistory = {{ tutor_history | tojson }};
+
+    // Student Response and Tutor Chat Modal
+    const responseLinks = document.querySelectorAll('.response-link');
+    responseLinks.forEach(link => {
+        link.addEventListener('click', function(event) {
+            event.preventDefault();
+            const promptId = parseInt(this.dataset.promptId);
+            const response = this.dataset.response;
+
+            // Render HTML instead of showing escaped tags:
+            document.getElementById('responseModalText').innerHTML = response || "No response submitted.";
+
+            // Filter and display the related tutor chat
+            const relatedChat = window.tutorHistory.filter(message => message.prompt_id === promptId);
+            const chatContainer = document.getElementById('responseModalChat');
+            chatContainer.innerHTML = ''; // Clear previous content
+
+            if (relatedChat.length > 0) {
+                relatedChat.forEach(message => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.classList.add('chat-message');
+                    messageDiv.classList.add(
+                        message.role === 'user' ? 'user-message' : 'assistant-message'
+                    );
+
+                    const iconSpan = document.createElement('span');
+                    iconSpan.classList.add('message-icon');
+                    iconSpan.innerHTML =
+                        message.role === 'user'
+                            ? '<i class="fas fa-user"></i>'
+                            : '<i class="fas fa-robot"></i>';
+
+                    const textP = document.createElement('p');
+                    const role = message.role.charAt(0).toUpperCase() + message.role.slice(1);
+                    textP.innerHTML = `<strong>${role}:</strong> ${message.message}`;
+
+                    const timeSmall = document.createElement('small');
+                    timeSmall.classList.add('text-muted');
+                    timeSmall.textContent = message.created_at;
+
+                    messageDiv.appendChild(iconSpan);
+                    messageDiv.appendChild(textP);
+                    messageDiv.appendChild(timeSmall);
+                    chatContainer.appendChild(messageDiv);
+                });
+            } else {
+                chatContainer.innerHTML = "<p>No tutor chat related to this prompt.</p>";
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

@@ -76,7 +76,7 @@
   
   /* Main Layout */
   .student-dashboard {
-    padding-top: 10px;
+    padding-top: 50px;
     padding-bottom: 70px;
     display: flex;
     flex-direction: column;
@@ -84,7 +84,7 @@
   
   /* Main Content */
   .container-fluid {
-    margin-left: 10px;
+    margin-left: 20px;
     padding: 20px;
     transition: margin-left var(--transition-speed) ease, width var(--transition-speed) ease;
   }
@@ -309,23 +309,26 @@
   }
   
   .chat-bubble {
-    display: block;
-    max-width: 80%;
-    padding: 0.75rem 1rem;
-    margin: 0.5rem 0;
-    border-radius: 1.25rem;
-    word-wrap: break-word;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    clear: both;
+    position: relative;
   }
   
   .user-bubble {
-    background: var(--primary-color);
-    color: var(--secondary-color);
-    align-self: flex-end;
+    background-color: #e7f7ff;
+    border: 1px solid #cce7f9;
+    float: right;
+    max-width: 75%;
+    
   }
   
   .tutor-bubble {
-    background: #e9ecef;
-    align-self: flex-start;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    float: left;
+    max-width: 75%;
   }
   
   /* Responsive Design */
@@ -414,4 +417,7 @@
   .hints-section li {
     margin-bottom: 0.5rem;
   }
+
+
+
 
