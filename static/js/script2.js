@@ -1,13 +1,14 @@
+// /flask_lms-master/static/js/script2.js
+
 let questions = [];
 let prompts = [];
 let chatHistory = [];
 let currentQuestionData = null;
 let currentPromptData = null;
-let currentDay = 1; // Changed initial day to 1 to match pagination display
+let currentDay = 1;
 const totalDays = 50;
-let currentPart = "question"; // "question" or "prompt"
+let currentPart = "question";
 
-// Helper function to safely render Markdown if the library is available.
 function safeMarkdown(text) {
     if (typeof marked !== 'undefined') {
         return marked.parse(text);
@@ -18,19 +19,16 @@ function safeMarkdown(text) {
 }
 
 function initializeSidebar() {
-    // Initially hide sidebar (unchanged)
     document.body.classList.add('sidebar-hidden');
 
     const toggleBtn = document.getElementById("toggle-sidebar-btn");
     const sidebar = document.getElementById('curriculum-sidebar');
-    const containerFluid = document.querySelector('.container-fluid'); // Get container-fluid
+    const containerFluid = document.querySelector('.container-fluid');
 
-    // Toggle button handler – adjusted so that page content remains visible by reducing width
     if (toggleBtn) {
         toggleBtn.addEventListener("click", function(e) {
             e.stopPropagation();
             if (document.body.classList.contains('sidebar-hidden')) {
-                // Show sidebar
                 document.body.classList.remove('sidebar-hidden');
                 if (sidebar && containerFluid) {
                     const sidebarWidth = window.getComputedStyle(sidebar).width || "300px";
@@ -38,7 +36,6 @@ function initializeSidebar() {
                     containerFluid.style.width = `calc(100% - ${sidebarWidth})`;
                 }
             } else {
-                // Hide sidebar
                 document.body.classList.add('sidebar-hidden');
                 if (containerFluid) {
                     containerFluid.style.marginLeft = "0";
@@ -48,7 +45,6 @@ function initializeSidebar() {
         });
     }
 
-    // Handle clicks outside sidebar on mobile and desktop
     document.addEventListener('click', function(e) {
         if (!document.body.classList.contains('sidebar-hidden') &&
             sidebar && !sidebar.contains(e.target) &&
@@ -61,7 +57,6 @@ function initializeSidebar() {
         }
     });
 
-    // Prevent scroll on body when sidebar is open on mobile (optional, can be kept as is)
     document.addEventListener('touchmove', function(e) {
         if (!document.body.classList.contains('sidebar-hidden')) {
             if (!sidebar.contains(e.target)) {
@@ -70,7 +65,6 @@ function initializeSidebar() {
         }
     }, { passive: false });
 
-    // Prevent sidebar scroll from affecting main content
     if (sidebar) {
         sidebar.addEventListener('wheel', function(e) {
             e.stopPropagation();
@@ -81,7 +75,6 @@ function initializeSidebar() {
         });
     }
 
-    // Handle window resize to recalculate container width when sidebar is visible
     window.addEventListener('resize', function() {
         if (!document.body.classList.contains('sidebar-hidden') && sidebar && containerFluid) {
             const sidebarWidth = window.getComputedStyle(sidebar).width || "300px";
@@ -95,13 +88,8 @@ function initializeSidebar() {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-    // Add student-dashboard class to body for proper styling
     document.body.classList.add('student-dashboard');
-
-    // Initialize sidebar in hidden state
     initializeSidebar();
-
-    // Load questions
     loadQuestions();
 });
 
@@ -116,7 +104,7 @@ async function loadQuestions() {
         if (questionData.success && promptData.success) {
             questions = questionData.questions;
             prompts = promptData.prompts;
-            // Pair the first question with its matching prompt (by id)
+
             currentQuestionData = questions[0];
             currentPromptData = currentQuestionData
                 ? prompts.find(p => p.id === currentQuestionData.id) || prompts[0]
@@ -144,19 +132,15 @@ async function loadQuestions() {
             }
 
             populateQuestionList(completedQuestions, completedPrompts);
-            // Start with question view
             currentPart = "question";
             displayQuestion(currentQuestionData);
-            // Ensure the question view buttons are set correctly
             document.getElementById("ask-btn").innerText = "Ask";
             document.getElementById("paste-btn").innerText = "Paste Question";
             updatePagination();
 
-            // Explicitly hide the prompt container on initial load
             document.getElementById("prompt-task-container").style.display = "none";
             document.getElementById("question-container").style.display = "block";
 
-            // Show the first item in view
             const firstItem = document.querySelector('.question-item');
             if (firstItem) {
                 firstItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -272,7 +256,6 @@ function loadSpecificDay(day) {
         document.getElementById("prompt-task-container").style.display = "none";
 
         displayQuestion(questionData);
-        // Revert buttons to question mode
         document.getElementById("ask-btn").innerText = "Ask";
         document.getElementById("paste-btn").innerText = "Paste Question";
 
@@ -288,7 +271,6 @@ function displayQuestion(questionData) {
     const optionsContainer = document.getElementById("options-container");
     const feedback = document.getElementById("feedback");
 
-    // Improved question appearance
     questionText.innerText = questionData.question;
     optionsContainer.innerHTML = "";
     feedback.innerText = "";
@@ -297,14 +279,12 @@ function displayQuestion(questionData) {
         const div = document.createElement("div");
         div.classList.add("option");
         div.innerText = option;
-        // Improved answer design: click effect and styling handled via CSS
         div.onclick = () => checkAnswer(idx, questionData.correct, div);
         optionsContainer.appendChild(div);
     });
 
-    // Ensure prompt task container is hidden when displaying a question
     document.getElementById("prompt-task-container").style.display = "none";
-    document.getElementById("question-container").style.display = "block"; // Ensure question is visible
+    document.getElementById("question-container").style.display = "block";
 }
 
 function displayPromptTask(promptData) {
@@ -395,7 +375,6 @@ async function loadNext() {
         const promptData = prompts[currentDay - 1];
         if (promptData) {
             displayPromptTask(promptData);
-            // Update buttons for prompt mode
             document.getElementById("ask-btn").innerText = "Generate";
             document.getElementById("paste-btn").innerText = "Copy Prompt";
         }
@@ -411,7 +390,6 @@ async function loadNext() {
             document.getElementById("question-container").style.display = "block";
             document.getElementById("prompt-task-container").style.display = "none";
             displayQuestion(questionData);
-            // Revert buttons to question mode
             document.getElementById("ask-btn").innerText = "Ask";
             document.getElementById("paste-btn").innerText = "Paste Question";
         }
@@ -433,7 +411,6 @@ async function loadPrevious() {
             document.getElementById("question-container").style.display = "block";
             document.getElementById("prompt-task-container").style.display = "none";
             displayQuestion(questionData);
-            // Revert buttons to question mode
             document.getElementById("ask-btn").innerText = "Ask";
             document.getElementById("paste-btn").innerText = "Paste Question";
         }
@@ -449,7 +426,6 @@ async function loadPrevious() {
                 document.getElementById("question-container").style.display = "none";
                 document.getElementById("prompt-task-container").style.display = "block";
                 displayPromptTask(promptData);
-                // Update buttons for prompt mode
                 document.getElementById("ask-btn").innerText = "Generate";
                 document.getElementById("paste-btn").innerText = "Copy Prompt";
             }
@@ -521,7 +497,7 @@ function askTutor() {
     fetch("/tutor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation: chatHistory })
+        body: JSON.stringify({ conversation: chatHistory, prompt_id: currentPromptData ? currentPromptData.id : null })
     })
     .then(response => response.json())
     .then(data => {
@@ -531,14 +507,21 @@ function askTutor() {
         }
     });
 }
-
+//modified to fix the alignment
 function appendChatBubble(sender, text) {
     const chatWindow = document.getElementById("chat-window");
     const bubble = document.createElement("div");
-    bubble.classList.add("chat-bubble", sender === "user" ? "user-bubble" : "tutor-bubble");
+    bubble.classList.add("chat-bubble"); // Add the base class
+
+    if (sender === "user") {
+        bubble.classList.add("user-bubble"); // Add user-specific class
+    } else {
+        bubble.classList.add("tutor-bubble"); // Add tutor-specific class
+    }
+
     bubble.innerHTML = safeMarkdown(text);
     chatWindow.appendChild(bubble);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
+    chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll
 }
 
 function pasteQuestion() {

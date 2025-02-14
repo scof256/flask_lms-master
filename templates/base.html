@@ -1,3 +1,5 @@
+<!-- /flask_lms-master/templates/base.html (REVISED) -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,42 +8,66 @@
   <title>{% block title %}AI Research LMS{% endblock %}</title>
 
   <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  >
 
   <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
   <!-- Font Awesome -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    rel="stylesheet"
+  >
   <!-- Custom CSS -->
   <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
   {% block extra_css %}{% endblock %}
+  <style>
+    /* Additional header improvements */
+    .navbar.admin-header {
+      background: linear-gradient(90deg, #003366, #004080);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 1rem 0;
+    }
+    .navbar.admin-header .navbar-brand {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .navbar.admin-header .nav-link {
+      color: #ffffff !important;
+      font-weight: 500;
+      margin-right: 1rem;
+      transition: color 0.2s ease;
+    }
+    .navbar.admin-header .nav-link:hover {
+      color: #ffd700 !important;
+    }
+  </style>
 </head>
 <body>
   <!-- Navigation -->
-  <nav class="navbar navbar-expand-lg">
+  {% if session.get('role') == 'admin' %}
+  <!-- Admin Header with enhanced styling -->
+  <nav class="navbar navbar-expand-lg admin-header">
     <div class="container">
-      <a class="navbar-brand" href="{{ url_for('index') }}">
-        <i class="fas fa-brain me-2"></i>AI Research LMS
+      <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">
+        <i class="fas fa-brain me-2"></i>AI Research LMS Admin
       </a>
-      {% if 'user_id' in session %}
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar" aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
+      <div class="collapse navbar-collapse" id="adminNavbar">
         <ul class="navbar-nav ms-auto">
-          {% if session.get('role') == 'admin' %}
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
               <i class="fas fa-chart-line me-1"></i>Dashboard
             </a>
           </li>
-          {% else %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('student_dashboard') }}">
-              <i class="fas fa-book me-1"></i>My Progress
-            </a>
-          </li>
-          {% endif %}
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('logout') }}">
               <i class="fas fa-sign-out-alt me-1"></i>Logout
@@ -49,9 +75,36 @@
           </li>
         </ul>
       </div>
-      {% endif %}
     </div>
   </nav>
+  {% else %}
+  <!-- Student Header with My Progress linking to student detail -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('index') }}">
+        <i class="fas fa-brain me-2"></i>AI Research LMS
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#studentNavbar" aria-controls="studentNavbar" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="studentNavbar">
+        <ul class="navbar-nav ms-auto">
+          <!-- "My Progress" now directs to the student detail page -->
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('student_detail_student') }}">
+              <i class="fas fa-book me-1"></i>My Progress
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('logout') }}">
+              <i class="fas fa-sign-out-alt me-1"></i>Logout
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  {% endif %}
 
   <!-- Flash Messages -->
   <div class="container mt-4">
@@ -68,7 +121,7 @@
   </div>
 
   <!-- Main Content -->
-  <main class="container-fluid py-4">  <!-- Changed 'container' to 'container-fluid' here -->
+  <main class="container-fluid py-4">
     {% block content %}{% endblock %}
   </main>
 

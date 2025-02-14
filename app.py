@@ -1,3 +1,5 @@
+# /flask_lms-master/app.py (REVISED)
+
 from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, session, flash, make_response
 import openai
 import markdown
@@ -6,9 +8,10 @@ from datetime import datetime, timedelta
 import os
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
+import html
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # Replace with a secure secret key in production
+app.secret_key = 'your-secret-key-here'  # Replace with a secure secret key
 
 # Database helper function
 def get_db():
@@ -41,8 +44,7 @@ def index():
     else:
         return redirect(url_for('student_dashboard'))
 
-# Signup route - new users are created as 'student' and not approved by default.  (ADDED FROM ui2.txt)
-#  **MOVED THIS ROUTE ABOVE /login**
+# Signup route
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -54,7 +56,7 @@ def signup():
         hashed_password = generate_password_hash(password)
         try:
             db.execute("INSERT INTO users (username, email, password, role, approved) VALUES (?, ?, ?, ?, ?)",
-                       (username, email, hashed_password, 'student', 0))  # Not approved by default
+                       (username, email, hashed_password, 'student', 0))
             db.commit()
             flash('Account created! Await admin approval.', 'info')
         except sqlite3.IntegrityError:
@@ -65,7 +67,7 @@ def signup():
 
     return render_template('signup.html')
 
-# Authentication routes - Modified login to check for approval (MODIFIED)
+# Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -77,7 +79,6 @@ def login():
         db.close()
 
         if user and check_password_hash(user['password'], password):
-            # Check if user is approved (ADDED THIS CHECK)
             if not user['approved']:
                 flash('Your account is pending admin approval.', 'warning')
                 return redirect(url_for('login'))
@@ -106,11 +107,9 @@ def logout():
 def student_dashboard():
     db = get_db()
     try:
-        # Get total counts
         total_questions = len(questions)
         total_prompts = len(prompts)
 
-        # Get progress by category
         category_progress = db.execute('''
             SELECT q.category,
                    COUNT(DISTINCT sp.question_id) as completed,
@@ -122,7 +121,6 @@ def student_dashboard():
             GROUP BY q.category
         ''', (session['user_id'],)).fetchall()
 
-        # Get overall progress
         progress_stats = db.execute('''
             SELECT
                 COUNT(DISTINCT question_id) as completed_questions,
@@ -132,7 +130,6 @@ def student_dashboard():
             WHERE user_id = ?
         ''', (session['user_id'],)).fetchone()
 
-        # Prepare upcoming categories data
         upcoming_categories = []
         for cat in category_progress:
             if cat['completed'] < cat['total']:
@@ -150,7 +147,6 @@ def student_dashboard():
                     'icon': icon
                 })
 
-        # Get daily progress data for chart
         daily_progress = db.execute('''
             SELECT
                 DATE(created_at) as date,
@@ -162,7 +158,6 @@ def student_dashboard():
             ORDER BY date
         ''', (session['user_id'],)).fetchall()
 
-        # Prepare chart data
         today = datetime.now().date()
         dates = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(6, -1, -1)]
         progress_data = {
@@ -170,7 +165,6 @@ def student_dashboard():
             'data': [0] * 7
         }
 
-        # Map progress data to correct days
         for prog in daily_progress:
             try:
                 day_index = dates.index(prog['date'])
@@ -194,12 +188,11 @@ def student_dashboard():
                          upcoming_categories=upcoming_categories[:3],
                          progress_data=progress_data)
 
-# Admin dashboard - Modified to show pending users (MODIFIED)
+# Admin dashboard
 @app.route('/admin/dashboard')
 @login_required(role='admin')
 def admin_dashboard():
     db = get_db()
-    # Get all students and their progress, including approval status
     students = db.execute('''
         SELECT u.id, u.username, u.email, u.approved,
                COUNT(DISTINCT sp.question_id) as questions_completed,
@@ -209,11 +202,12 @@ def admin_dashboard():
         WHERE u.role = 'student'
         GROUP BY u.id
     ''').fetchall()
-    pending_users = [student for student in students if not student['approved']] # Filter pending users
-    approved_users = [student for student in students if student['approved']] # Filter approved users
+    pending_users = [student for student in students if not student['approved']]
+    approved_users = [student for student in students if student['approved']]
 
     db.close()
-    return render_template('admin_dashboard.html', students=approved_users, pending_users=pending_users) # Pass both lists
+    return render_template('admin_dashboard.html', students=approved_users, pending_users=pending_users)
+
 
 @app.route('/admin/student/<int:student_id>')
 @login_required(role='admin')
@@ -231,19 +225,44 @@ def student_detail(student_id):
             sp.*,
             q.question,
             q.category,
-            datetime(sp.created_at) as created_at
+            datetime(sp.created_at) as created_at,
+            p.prompt_text
         FROM student_progress sp
         LEFT JOIN questions q ON q.id = sp.question_id
+        LEFT JOIN prompts p ON p.id = sp.prompt_id
         WHERE sp.user_id = ?
         ORDER BY sp.created_at DESC
     ''', (student_id,)).fetchall()
 
+    tutor_history = db.execute('''
+        SELECT *
+        FROM tutor_chats
+        WHERE user_id = ?
+        ORDER BY created_at ASC
+    ''', (student_id,)).fetchall()
+
     db.close()
+
+    # Convert tutor_history to a list of dictionaries
+    tutor_history_dicts = [dict(row) for row in tutor_history]
+
+    # --- CORRECTED SECTION ---
+    # Convert progress to a list of dictionaries *and* decode HTML entities
+    progress_dicts = []
+    for row in progress:
+        row_dict = dict(row)  # Convert the Row object to a dictionary
+        if row_dict['generated_response']:
+            row_dict['generated_response'] = html.unescape(row_dict['generated_response'])
+        progress_dicts.append(row_dict)
+    # --- END CORRECTED SECTION ---
+
     return render_template('admin/student_detail.html',
                          student=student,
-                         progress=progress)
+                         progress=progress_dicts,  # Pass the list of dictionaries
+                         tutor_history=tutor_history_dicts)
 
-# Route for admin to approve a pending user (ADDED FROM ui2.txt)
+
+# Route for admin to approve a pending user
 @app.route('/admin/approve/<int:user_id>', methods=['POST'])
 @login_required(role='admin')
 def approve_user(user_id):
@@ -255,8 +274,8 @@ def approve_user(user_id):
     return redirect(url_for('admin_dashboard'))
 
 # LLM Setup (Gemini)
-OPENAI_API_KEY = "AIzaSyB67xwYbaD7vUCVYoJoRxG6FlFT5dEq-DQ"  # Replace with your actual key
-model = "gemini-2.0-flash-exp"  # Or a suitable Gemini model
+OPENAI_API_KEY = "AIzaSyB67xwYbaD7vUCVYoJoRxG6FlFT5dEq-DQ"  # Replace
+model = "gemini-2.0-flash-exp"
 
 openai_client = openai.OpenAI(
     api_key=OPENAI_API_KEY,
@@ -347,7 +366,7 @@ prompts = [
     {"id": 27, "prompt_text": "Craft a prompt that instructs the AI to develop a full‑scale project proposal complete with detailed timelines, resource allocation, and key milestones."},
     {"id": 28, "prompt_text": "Create a prompt that asks the AI to translate complex technical documentation or industry jargon into clear, accessible language."},
     {"id": 29, "prompt_text": "Develop a prompt that instructs the AI to propose multiple alternative strategies for solving a specific business challenge."},
-    {"id": 30, "prompt_text": "Write a multi‑step prompt that guides the AI to integrate financial data for forecasting purposes and to analyze company data to predict future sales trends."},
+    {"id": 30, "prompt_text": "Write a multi‑step prompt that guides the AI to integrate financial data for forecasting purposes and to analyze company data to predict future sales trends."},  # Added in previous turn
     {"id": 31, "prompt_text": "Design a series of interconnected prompts where the output of one prompt serves as the input for the next, forming a complete workflow for a complex task."},
     {"id": 32, "prompt_text": "Craft a prompt that directs the AI to analyze current market trends and perform a competitor analysis—complete with visual elements like comparison charts."},
     {"id": 33, "prompt_text": "Develop a prompt that simulates a crisis scenario, asks the AI to perform a detailed risk assessment, and then structure a comprehensive business continuity plan."},
@@ -421,21 +440,18 @@ def submit_prompt_response():
 def get_progress():
     db = get_db()
     try:
-        # Get completed questions with IDs
         completed_questions = db.execute('''
             SELECT question_id
             FROM student_progress
             WHERE user_id = ? AND question_id IS NOT NULL AND is_correct = 1
         ''', (session['user_id'],)).fetchall()
 
-        # Get completed prompts with IDs
         completed_prompts = db.execute('''
             SELECT prompt_id
             FROM student_progress
             WHERE user_id = ? AND prompt_id IS NOT NULL
         ''', (session['user_id'],)).fetchall()
 
-        # Get total counts and correct answers
         questions_progress = db.execute('''
             SELECT COUNT(DISTINCT question_id) as completed,
                    SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct
@@ -469,7 +485,6 @@ def get_user_progress_index():
 
     db = get_db()
     try:
-        # Get highest completed question and prompt IDs
         question_progress = db.execute('''
             SELECT MAX(question_id) as last_question
             FROM student_progress
@@ -543,7 +558,7 @@ Simplified Beginner Prompt:
             model=model,
             messages=[{"role": "user", "content": prompt_for_llm}]
         )
-        answer = response.choices[0].message.content.strip() # important to strip to remove extra spaces
+        answer = response.choices[0].message.content.strip()
         formatted_answer = markdown.markdown(answer)
     except Exception as e:
         error_message = f"Error generating response from LLM: {str(e)}"
@@ -559,25 +574,48 @@ Simplified Beginner Prompt:
 def tutor_chat():
     data = request.get_json()
     conversation = data.get('conversation', [])
+    current_prompt_id = data.get('prompt_id')
 
+    db = get_db()
     try:
+        # Store the user's message
+        for message in conversation:
+            if message['role'] == 'user':
+                db.execute('''
+                    INSERT INTO tutor_chats (user_id, prompt_id, message, role)
+                    VALUES (?, ?, ?, ?)
+                ''', (session['user_id'], current_prompt_id, message['content'], message['role']))
+        db.commit()
+
         response = openai_client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are a helpful AI tutor specializing in AI and prompt engineering. end by inquring if student has understood or needs futher explaination or assistance to keep the conversation flowing. Please use markdown formatting in your responses."},
+                {"role": "system", "content": "You are a helpful AI tutor specializing in AI and prompt engineering. End by inquiring if student has understood or needs further explanation or assistance to keep the conversation flowing. Please use markdown formatting in your responses."},
                 *[{"role": msg["role"], "content": msg["content"]} for msg in conversation]
             ]
         )
         markdown_content = markdown.markdown(response.choices[0].message.content)
+
+        # Store the assistant's response
+        db.execute('''
+            INSERT INTO tutor_chats (user_id, prompt_id, message, role)
+            VALUES (?, ?, ?, ?)
+        ''', (session['user_id'], current_prompt_id, markdown_content, 'assistant'))
+        db.commit()
+
+
         return jsonify({
             "success": True,
             "answer": markdown_content
         })
     except Exception as e:
+        db.rollback()
         return jsonify({
             "success": False,
             "message": f"Error getting tutor response: {str(e)}"
         }), 500
+    finally:
+        db.close()
 
 # Routes for getting all questions and prompts
 @app.route('/get_all_questions')
@@ -595,6 +633,77 @@ def get_all_prompts():
         "success": True,
         "prompts": prompts
     })
+
+# Helper functions to fetch data
+def get_student_by_id(user_id):
+    db = get_db()
+    student = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    db.close()
+    return student
+
+def get_progress_for_student(user_id):
+    db = get_db()
+    progress = db.execute('''
+        SELECT
+            sp.*,
+            q.question,
+            q.category,
+            datetime(sp.created_at) as created_at,
+            p.prompt_text
+        FROM student_progress sp
+        LEFT JOIN questions q ON q.id = sp.question_id
+        LEFT JOIN prompts p ON p.id = sp.prompt_id
+        WHERE sp.user_id = ?
+        ORDER BY sp.created_at DESC
+    ''', (user_id,)).fetchall()
+    db.close()
+     # Convert progress to a list of dictionaries *and* decode HTML entities
+    progress_dicts = []
+    for row in progress:
+        row_dict = dict(row)  # Convert the Row object to a dictionary
+        if row_dict['generated_response']:
+            row_dict['generated_response'] = html.unescape(row_dict['generated_response'])
+        progress_dicts.append(row_dict)
+    return progress_dicts
+
+def get_tutor_history_for_student(user_id):
+    db = get_db()
+    tutor_history = db.execute('''
+        SELECT *
+        FROM tutor_chats
+        WHERE user_id = ?
+        ORDER BY created_at ASC
+    ''', (user_id,)).fetchall()
+    db.close()
+    return [dict(row) for row in tutor_history]  # Convert to list of dicts
+
+
+@app.route('/student_detail')
+@login_required(role='student')  # Add login_required decorator
+def student_detail_student():
+    # Verify the user is a student
+    if session.get('role') != 'student':
+        return redirect(url_for('index'))
+
+    # Fetch the student details
+    student = get_student_by_id(session['user_id'])
+    if not student:  # Add a check if student is not found
+        flash('Student not found.', 'danger')
+        return redirect(url_for('student_dashboard'))
+
+    # Get progress and tutor_history data for the student
+    progress = get_progress_for_student(session['user_id'])
+    tutor_history = get_tutor_history_for_student(session['user_id'])
+    return render_template('student_detail.html', student=student, progress=progress, tutor_history=tutor_history)
+
+
+
+# Context processor to make 'prompts' available to all templates
+@app.context_processor
+def inject_prompts():
+    """Makes the 'prompts' data available to all templates."""
+    return dict(prompts=prompts)
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
