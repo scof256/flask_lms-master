@@ -1,5 +1,4 @@
 // /flask_lms-master/static/js/script2.js
-
 let questions = [];
 let prompts = [];
 let chatHistory = [];
@@ -297,6 +296,12 @@ function displayPromptTask(promptData) {
     document.getElementById("prompt-task-text").innerText = promptData.prompt_text;
     document.getElementById("small-chat-input").value = promptData.prompt_text;
     document.getElementById("small-chat-response").innerText = "";
+
+    // Update the department display
+    const promptTitle = document.querySelector(".prompt-task-title");
+    if (promptTitle) {
+        promptTitle.innerText = `Prompt Task - ${promptData.department || 'No Department'}`;
+    }
 }
 
 function checkAnswer(selectedIndex, correctIndex, element) {

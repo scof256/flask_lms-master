@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     role TEXT CHECK(role IN ('student','admin')) NOT NULL,
+    department TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS questions (
 -- Prompts table
 CREATE TABLE IF NOT EXISTS prompts (
     id INTEGER PRIMARY KEY,
+    department TEXT NOT NULL,
     prompt_text TEXT NOT NULL
 );
 

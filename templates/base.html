@@ -1,5 +1,3 @@
-<!-- /flask_lms-master/templates/base.html (REVISED) -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,30 +25,164 @@
   <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
   {% block extra_css %}{% endblock %}
   <style>
-    /* Additional header improvements */
+    /* Glass morphism styles while keeping original colors */
+    
+    /* Card styles with glass effect */
+    .card {
+      background: rgba(255, 255, 255, 0.1) !important;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+      transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+    }
+
+    /* Admin Header - keeping original gradient with glass effect */
     .navbar.admin-header {
-      background: linear-gradient(90deg, #003366, #004080);
+      background: linear-gradient(90deg, rgba(0, 51, 102, 0.95), rgba(0, 64, 128, 0.95));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       padding: 1rem 0;
     }
+
     .navbar.admin-header .navbar-brand {
       font-size: 1.5rem;
       font-weight: 700;
       color: #ffffff;
     }
+
     .navbar.admin-header .nav-link {
       color: #ffffff !important;
       font-weight: 500;
       margin-right: 1rem;
-      transition: color 0.2s ease;
+      transition: all 0.3s ease;
     }
+
     .navbar.admin-header .nav-link:hover {
       color: #ffd700 !important;
+      transform: translateY(-2px);
+    }
+
+    /* Student Header - keeping light theme with glass effect */
+    .navbar.navbar-light {
+      background: rgba(248, 249, 250, 0.8) !important;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Alert messages with glass effect */
+    .alert {
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .alert-success {
+      background: rgba(40, 167, 69, 0.15);
+    }
+
+    .alert-danger {
+      background: rgba(220, 53, 69, 0.15);
+    }
+
+    .alert-warning {
+      background: rgba(255, 193, 7, 0.15);
+    }
+
+    .alert-info {
+      background: rgba(23, 162, 184, 0.15);
+    }
+
+    /* Footer with subtle glass effect */
+    .footer {
+      background: rgba(248, 249, 250, 0.8);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      padding: 1rem 0;
+      box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Custom form elements with glass effect */
+    .form-control, .form-select {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 0 0 0.25rem rgba(0, 51, 102, 0.15);
+    }
+
+    /* Button improvements */
+    .btn {
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Modal improvements */
+    .modal-content {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 51, 102, 0.1);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 51, 102, 0.3);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 51, 102, 0.4);
+    }
+
+    /* Main content padding adjustment for fixed footer */
+    main.container-fluid {
+      padding-bottom: 80px;
+    }
+
+    /* Navbar toggler customization */
+    .navbar-toggler {
+      border: 1px solid rgba(0, 51, 102, 0.2);
+      padding: 0.5rem;
     }
   </style>
 </head>
 <body>
-  <!-- Navigation -->
+  <!-- Rest of the HTML remains exactly the same as in the original template -->
   {% if session.get('role') == 'admin' %}
   <!-- Admin Header with enhanced styling -->
   <nav class="navbar navbar-expand-lg admin-header">
@@ -78,8 +210,8 @@
     </div>
   </nav>
   {% else %}
-  <!-- Student Header with My Progress linking to student detail -->
-  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <!-- Student Header -->
+  <nav class="navbar navbar-expand-lg navbar-light">
     <div class="container">
       <a class="navbar-brand" href="{{ url_for('index') }}">
         <i class="fas fa-brain me-2"></i>AI Research LMS
@@ -89,7 +221,6 @@
       </button>
       <div class="collapse navbar-collapse" id="studentNavbar">
         <ul class="navbar-nav ms-auto">
-          <!-- "My Progress" now directs to the student detail page -->
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('student_detail_student') }}">
               <i class="fas fa-book me-1"></i>My Progress

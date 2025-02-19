@@ -148,9 +148,9 @@ textarea.auto-expand {
 
             <!-- Prompt Task Container -->
             <div id="prompt-task-container" class="prompt-task-box" style="display: block;">
-              <h3 class="prompt-task-title mb-3">Prompt Task</h3>
+              <h3 class="prompt-task-title mb-3">Prompt Task - {{ current_prompt.department if current_prompt else 'No Department' }}</h3>
               <div id="prompt-task-text" class="prompt-task-text mb-3">
-                Craft a prompt that instructs an AI to generate a concise summary of various content types—for example, a news article, a multi‑page report, legal documents, customer feedback, research articles, and executive briefings.
+                {{ current_prompt.prompt_text if current_prompt else 'No prompt available.' }}
               </div>
               <div class="small-chatbot">
                 <textarea id="small-chat-input" class="form-control mb-2 auto-expand" rows="3" placeholder="Paste prompt task here or write your own prompt..."></textarea>
@@ -179,8 +179,8 @@ textarea.auto-expand {
         </div>
         <div class="d-flex justify-content-between mt-2">
           <div>
-            <button class="btn btn-primary me-2" onclick="askTutor()" id="ask-btn">Ask</button>
-            <button class="btn btn-secondary" onclick="pasteQuestion()" id="paste-btn">Paste Question/Task</button>
+            <button class="btn btn-primary me-2" onclick="askTutor()">Ask</button>
+            <button class="btn btn-secondary" onclick="pasteQuestion()">Paste Question/Task</button>
           </div>
           <button id="copy-btn" class="btn btn-secondary" onclick="copyChat()">Copy Chat</button>
         </div>
