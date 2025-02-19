@@ -456,6 +456,19 @@ function generateFromSmallChat(isAdvanced) {
     const prompt = document.getElementById("small-chat-input").value;
     if (!prompt) return;
 
+    const simpleBtn = document.getElementById('generate-simple-btn');
+    const advancedBtn = document.getElementById('generate-advanced-btn');
+    const simpleSpinner = document.getElementById('generate-simple-spinner');
+    const advancedSpinner = document.getElementById('generate-advanced-spinner');
+
+    if (!isAdvanced) {
+        simpleSpinner.classList.remove('d-none');
+        simpleBtn.disabled = true;
+    } else {
+        advancedSpinner.classList.remove('d-none');
+        advancedBtn.disabled = true;
+    }
+
     fetch("/generate_from_prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -486,6 +499,11 @@ function generateFromSmallChat(isAdvanced) {
                         currItem.setAttribute('data-status', '✓ Day Completed');
                     }
                 }
+            }).finally(() => {
+                simpleSpinner.classList.add('d-none');
+                advancedSpinner.classList.add('d-none');
+                simpleBtn.disabled = false;
+                advancedBtn.disabled = false;
             });
         }
     });
@@ -494,6 +512,12 @@ function generateFromSmallChat(isAdvanced) {
 function askTutor() {
     const userInput = document.getElementById("user-question").value.trim();
     if (!userInput) return;
+
+    const askButton = document.getElementById('ask-tutor-btn');
+    const spinner = document.getElementById('ask-tutor-spinner');
+    spinner.classList.remove('d-none');
+    askButton.disabled = true;
+
 
     appendChatBubble("user", userInput);
     chatHistory.push({ role: "user", content: userInput });
@@ -510,6 +534,10 @@ function askTutor() {
             appendChatBubble("assistant", data.answer);
             chatHistory.push({ role: "assistant", content: data.answer });
         }
+    })
+    .finally(() => {
+        spinner.classList.add('d-none');
+        askButton.disabled = false;
     });
 }
 //modified to fix the alignment
