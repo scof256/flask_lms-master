@@ -1,6 +1,6 @@
 # /flask_lms-master/app.py (REVISED)
 
-from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, session, flash, make_response
+from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, session, flash, make_response, g
 import openai
 import markdown
 import sqlite3
@@ -9,15 +9,42 @@ import os
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 import html
+import json
+
+# Load questions and prompts from JSON files
+def load_json_data():
+    with open('questions.json', 'r') as f:
+        questions = json.load(f)
+    with open('prompts.json', 'r') as f:
+        prompts = json.load(f)
+    return questions, prompts
+
+# Initialize questions and prompts
+questions, prompts = load_json_data()
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Replace with a secure secret key
 
 # Database helper function
 def get_db():
-    db = sqlite3.connect('instance/lms.db')
-    db.row_factory = sqlite3.Row
-    return db
+    if 'db' not in g:
+        g.db = sqlite3.connect('instance/lms.db')
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+def close_db(e=None):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+# Initialize Flask application context
+@app.before_request
+def before_request():
+    g.db = get_db()
+
+@app.teardown_appcontext
+def teardown_db(error):
+    close_db()
 
 # Login required decorator
 def login_required(role=None):
@@ -105,8 +132,8 @@ def logout():
 @app.route('/student/dashboard')
 @login_required(role='student')
 def student_dashboard():
-    db = get_db()
     try:
+        db = get_db()
         total_questions = len(questions)
         total_prompts = len(prompts)
 
@@ -172,21 +199,33 @@ def student_dashboard():
             except ValueError:
                 continue
 
+        # Get current prompt for the student with department information in a single query
+        current_prompt = db.execute("""
+            SELECT p.id, p.department, p.prompt_text, COUNT(sp.id) as attempts
+            FROM prompts p
+            LEFT JOIN student_progress sp ON sp.prompt_id = p.id AND sp.user_id = ?
+            GROUP BY p.id
+            HAVING attempts = 0 OR attempts IS NULL
+            ORDER BY p.id
+            LIMIT 1
+        """, (session['user_id'],)).fetchone()
+
+        return render_template('student_dashboard.html',
+                             total_questions=total_questions,
+                             total_prompts=total_prompts,
+                             completed_questions=progress_stats['completed_questions'] or 0,
+                             completed_prompts=progress_stats['completed_prompts'] or 0,
+                             correct_answers=progress_stats['correct_answers'] or 0,
+                             category_progress=category_progress,
+                             upcoming_categories=upcoming_categories[:3],
+                             progress_data=progress_data,
+                             current_prompt=current_prompt)
+
     except sqlite3.Error as e:
         flash('Error loading progress data', 'error')
         return redirect(url_for('index'))
     finally:
         db.close()
-
-    return render_template('student_dashboard.html',
-                         total_questions=total_questions,
-                         total_prompts=total_prompts,
-                         completed_questions=progress_stats['completed_questions'] or 0,
-                         completed_prompts=progress_stats['completed_prompts'] or 0,
-                         correct_answers=progress_stats['correct_answers'] or 0,
-                         category_progress=category_progress,
-                         upcoming_categories=upcoming_categories[:3],
-                         progress_data=progress_data)
 
 # Admin dashboard
 @app.route('/admin/dashboard')
@@ -282,114 +321,13 @@ openai_client = openai.OpenAI(
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
 )
 
-# Data (Questions and Prompts)
-questions = [
-    {"id": 1, "category": "Key Definitions", "question": "What is Artificial Intelligence (AI) in simple terms?", "options": ["A computer system that mimics human intelligence", "A process that only involves manual calculations", "A machine that can only perform manual tasks", "A type of computer virus"], "correct": 0},
-    {"id": 2, "category": "Key Definitions", "question": "What are the key differences between AI, machine learning, and deep learning?", "options": ["Machine learning and deep learning are not part of AI", "Deep learning is an outdated term for AI, while machine learning is a new term", "AI is a broad field, machine learning is a method to achieve AI through data learning, and deep learning is a specialized technique using neural networks", "All three terms refer to the exact same concept with no differences"], "correct": 2},
-    {"id": 3, "category": "Key Definitions", "question": "How does AI process information compared to how humans think?", "options": ["AI processes information by randomly guessing outcomes", "AI and human thought are exactly identical in every way", "Humans process information in binary code, similar to computers", "AI uses algorithms and statistical models, while human thinking involves cognitive and emotional processing"], "correct": 3},
-    {"id": 4, "category": "Real-world Impact", "question": "How is AI transforming different industries (healthcare, finance, education, etc.)?", "options": ["By only replacing outdated computer systems without any added benefits", "By creating more bureaucratic hurdles in every industry", "By eliminating human jobs entirely in every sector", "By automating tasks, enhancing data analysis, personalizing services, and improving decision-making processes"], "correct": 3},
-    {"id": 5, "category": "Real-world Impact", "question": "What are some surprising ways AI is being used today?", "options": ["Solely for automating simple calculations", "Exclusively for military applications", "Primarily for creative arts, wildlife conservation, and predictive maintenance", "Only for repetitive manufacturing tasks"], "correct": 2},
-    {"id": 6, "category": "Real-world Impact", "question": "How can AI impact job markets in the future?", "options": ["It can create new opportunities while displacing some traditional roles", "It will only eliminate jobs without creating any new ones", "It will have no effect on job markets at all", "It will replace every human worker in all industries"], "correct": 0},
-    {"id": 7, "category": "Discover Prompt Engineering", "question": "What is prompt engineering, and why is it important when using AI?", "options": ["It is a way to manually override AI outputs", "It is irrelevant to AI performance", "It involves designing input queries to guide AI responses effectively", "It is only used in programming hardware devices"], "correct": 2},
-    {"id": 8, "category": "Discover Prompt Engineering", "question": "What makes a good AI prompt? Give examples of good vs. bad prompts.", "options": ["A good prompt is one that is extremely short and leaves everything open", "A good prompt is one that uses slang and informal language exclusively", "A good prompt includes random unrelated information", "A good prompt is clear, specific, and provides context; a bad prompt is vague and ambiguous"], "correct": 3},
-    {"id": 9, "category": "Discover Prompt Engineering", "question": "How do small changes in prompts affect AI responses?", "options": ["They only affect the speed of processing", "They have no effect on the outputs", "Minor modifications can lead to significantly different outputs", "They result in the AI refusing to answer"], "correct": 2},
-    {"id": 10, "category": "LLM Fundamentals", "question": "What is a Large Language Model (LLM), and how does it work?", "options": ["It works by randomly generating words without any training", "It is a small database of pre-written responses", "It is an AI system that predicts and generates human-like language from large text datasets", "It is a tool exclusively for translating languages without any predictive capabilities"], "correct": 2},
-    {"id": 11, "category": "LLM Fundamentals", "question": "How do LLMs learn from data?", "options": ["By adjusting internal parameters through training algorithms on large datasets", "By simply copying human-written text without any processing", "By operating on pre-programmed rules without data", "By memorizing every sentence without learning any patterns"], "correct": 0},
-    {"id": 12, "category": "LLM Fundamentals", "question": "What are the limitations of LLMs when answering questions?", "options": ["They always provide factually correct and context-aware answers", "They have unlimited access to all real-time data", "They may produce plausible but incorrect answers and struggle with nuanced contexts", "They only function as simple calculators"], "correct": 2},
-    {"id": 13, "category": "Crafting Effective Prompts", "question": "What are three techniques for making an AI prompt clearer and more useful?", "options": ["Using as few words as possible without details", "Being specific, providing context, and using step-by-step instructions", "Writing in a confusing manner intentionally", "Being vague, avoiding context, and using random instructions"], "correct": 1},
-    {"id": 14, "category": "Crafting Effective Prompts", "question": "How does adding context improve AI responses?", "options": ["It only makes the prompt longer without any benefits", "It forces the AI to generate generic responses", "It helps AI understand background information for more accurate responses", "It confuses the AI by providing too much irrelevant detail"], "correct": 2},
-    {"id": 15, "category": "Crafting Effective Prompts", "question": "How can you design a prompt that helps AI generate creative answers?", "options": ["By asking very strict, yes-or-no questions", "By including open-ended questions and creative constraints", "By avoiding any form of instruction", "By limiting the prompt to factual data only"], "correct": 1},
-    {"id": 16, "category": "Iterative Refinement", "question": "What is iterative refinement, and how can it improve AI-generated content?", "options": ["Ignoring initial output and starting from scratch every time", "Repeatedly revising and enhancing outputs for clarity and accuracy", "A one-time generation process with no further revisions", "Automatically deleting unsatisfactory outputs without improvement"], "correct": 1},
-    {"id": 17, "category": "Iterative Refinement", "question": "How can you refine a weak AI-generated response to make it better?", "options": ["By simply copying the weak response without changes", "By reducing the amount of context provided", "By providing additional context and clarifying instructions", "By completely ignoring any user feedback"], "correct": 2},
-    {"id": 18, "category": "Iterative Refinement", "question": "What are common mistakes people make when refining AI-generated content?", "options": ["Always leaving the response unchanged", "Providing too much clear direction", "Using iterative refinement only once", "Over-editing, ambiguous context, and unclear objectives"], "correct": 3},
-    {"id": 19, "category": "Few-shot Prompting", "question": "What is few-shot prompting, and how does it help AI understand instructions better?", "options": ["It overloads the AI with too many examples to confuse it", "It provides a few examples to guide the AI's understanding and response", "It relies on a single example to guide AI responses", "It gives the AI no examples at all"], "correct": 1},
-    {"id": 20, "category": "Few-shot Prompting", "question": "How does few-shot prompting compare to zero-shot and one-shot prompting?", "options": ["All three methods provide the same level of instruction", "One-shot provides more examples than few-shot", "Few-shot uses several examples, one-shot uses one, and zero-shot uses none", "Zero-shot provides the most detailed guidance"], "correct": 2},
-    {"id": 21, "category": "Few-shot Prompting", "question": "Can you create an example of a few-shot prompt for summarizing news articles?", "options": ["A prompt that provides examples of weather reports instead of news summaries", "A prompt including multiple examples of news summaries, then asking for a summary", "A prompt that only asks 'Summarize this article'", "A prompt that instructs the AI to ignore all given examples"], "correct": 1},
-    {"id": 22, "category": "Applying AI for Productivity", "question": "How can AI help professionals be more productive in their daily tasks?", "options": ["By complicating simple tasks with unnecessary steps", "By only focusing on creative tasks", "By automating repetitive tasks and assisting with scheduling", "By replacing all human input completely"], "correct": 2},
-    {"id": 23, "category": "Applying AI for Productivity", "question": "What are three AI-powered tools that can help with project management?", "options": ["Manual spreadsheets with no AI features", "Only email clients and calendar apps without AI integration", "Traditional paper planners", "Task automation software, AI-based scheduling tools, and intelligent analytics platforms"], "correct": 3},
-    {"id": 24, "category": "Applying AI for Productivity", "question": "How can AI assist in writing, summarizing, and editing documents?", "options": ["By only providing spell-check functionalities", "By disregarding grammar and context completely", "By completely rewriting documents without user input", "By generating drafts, summarizing content, and suggesting edits"], "correct": 3},
-    {"id": 25, "category": "Types of AI Tools", "question": "What are the main categories of AI tools, and what are they used for?", "options": ["They are all generic tools with no specialized functions", "Only tools for playing games", "From natural language processing to computer vision, used for tasks like text analysis and image recognition", "They are only used for data storage"], "correct": 2},
-    {"id": 26, "category": "Types of AI Tools", "question": "How do AI-powered text generators differ from AI-powered image generators?", "options": ["Text generators can create visuals, while image generators can create text", "Text generators are only used for code, and image generators for videos", "They both generate identical content in the same format", "Text generators produce written content, and image generators create visuals using specialized algorithms"], "correct": 3},
-    {"id": 27, "category": "Types of AI Tools", "question": "What are some AI-powered tools for automating repetitive office tasks?", "options": ["Only manual typewriters", "Email filtering, scheduling assistants, and data entry automation software", "Paper-based filing systems", "Traditional calculators"], "correct": 1},
-    {"id": 28, "category": "Integration Strategies", "question": "What are the steps to successfully integrate AI into a business workflow?", "options": ["Implementing AI without any testing or assessment", "Only purchasing the most expensive AI tool without planning", "Immediately replacing all human workers with AI", "Assessing needs, selecting tools, piloting solutions, and scaling based on feedback"], "correct": 3},
-    {"id": 29, "category": "Integration Strategies", "question": "What are some common challenges when integrating AI into existing work processes?", "options": ["Only issues with the physical hardware", "There are no challenges at all", "Just the color of the AI interface", "Data quality issues, resistance to change, and lack of technical expertise"], "correct": 3},
-    {"id": 30, "category": "Integration Strategies", "question": "What are some examples of companies that have successfully adopted AI?", "options": ["Firms that solely focus on manual labor", "Tech giants like Google, Amazon, and IBM along with innovative startups", "Only small local businesses with no global presence", "Companies that completely avoid using any technology"], "correct": 1},
-    {"id": 31, "category": "Responsible AI", "question": "What does 'responsible AI' mean, and why is it important?", "options": ["Only focusing on AI's technical performance without transparency", "Using AI without any ethical or societal considerations", "Developing AI ethically, transparently, and with societal considerations", "Developing AI solely for profit without concern for impact"], "correct": 2},
-    {"id": 32, "category": "Responsible AI", "question": "What are three ethical concerns related to AI use in the workplace?", "options": ["There are no ethical concerns with AI", "Bias, privacy invasion, and lack of accountability", "Only concerns about AI's power consumption", "Only increased productivity"], "correct": 1},
-    {"id": 33, "category": "Responsible AI", "question": "How can companies ensure they use AI in a responsible and ethical way?", "options": ["Ignoring ethical guidelines in favor of rapid deployment", "Focusing only on profits without considering ethics", "Implementing ethical guidelines, conducting regular audits, and ensuring transparency", "Relying solely on automated systems without oversight"], "correct": 2},
-    {"id": 34, "category": "Identifying Bias and Harms", "question": "How does bias appear in AI models, and what are the consequences?", "options": ["Bias only makes AI models more efficient", "Bias is not possible in AI models", "Bias can emerge from training data leading to unfair outcomes and discrimination", "Bias in AI has no real-world consequences"], "correct": 2},
-    {"id": 35, "category": "Identifying Bias and Harms", "question": "Can you find an example where AI produced biased or harmful results?", "options": ["An algorithm that treats all candidates equally without bias", "AI systems that always provide perfect, unbiased decisions", "A hiring algorithm that favored one gender due to biased historical data", "An example where AI caused harm in traffic signal timings"], "correct": 2},
-    {"id": 36, "category": "Identifying Bias and Harms", "question": "What methods can be used to detect and reduce AI bias?", "options": ["Using only one type of training data without review", "Relying on biased data to test algorithms", "Ignoring bias and hoping it resolves on its own", "Bias audits, diverse datasets, and fairness testing"], "correct": 3},
-    {"id": 37, "category": "Human-in-the-loop", "question": "What does 'human-in-the-loop' AI mean, and why is it useful?", "options": ["Relying on AI without any human input", "Involving human oversight to ensure accuracy, accountability, and ethics", "Removing humans entirely from the AI process", "Using humans only for manual tasks unrelated to AI"], "correct": 1},
-    {"id": 38, "category": "Human-in-the-loop", "question": "How can human oversight improve AI decision-making?", "options": ["It is unnecessary if AI is powerful enough", "It slows down the process without any benefits", "It can catch errors, provide context, and guide AI decisions", "It only interferes with AI efficiency"], "correct": 2},
-    {"id": 39, "category": "Human-in-the-loop", "question": "What industries benefit most from a human-in-the-loop AI approach?", "options": ["Only small-scale local businesses benefit", "All industries work best without any human oversight", "Industries like healthcare, finance, and autonomous vehicles benefit most", "Only the entertainment industry benefits"], "correct": 2},
-    {"id": 40, "category": "Data Privacy and Security", "question": "How does AI handle sensitive data, and what are the risks?", "options": ["AI does not process sensitive data at all", "AI handles sensitive data without any security measures", "AI uses encryption and access controls, but risks include data breaches", "Sensitive data is never stored by AI systems"], "correct": 2},
-    {"id": 41, "category": "Data Privacy and Security", "question": "What are three best practices for ensuring AI respects user privacy?", "options": ["Sharing user data openly to ensure transparency", "Using public networks for sensitive data", "Data anonymization, strict access controls, and regular security audits", "Ignoring data protection laws"], "correct": 2},
-    {"id": 42, "category": "Data Privacy and Security", "question": "What are some real-world examples of AI-related data breaches?", "options": ["Data breaches only occur in non-AI systems", "Breaches in finance or healthcare due to poorly secured AI systems", "There have been no AI-related data breaches", "Data breaches are only a concern for personal computers"], "correct": 1},
-    {"id": 43, "category": "AI Documentation", "question": "Why is documenting AI system behavior and decisions important?", "options": ["Documentation is unnecessary for AI systems", "It helps with transparency, auditing, and troubleshooting", "Only the code needs to be documented", "AI systems are self-documenting"], "correct": 1},
-    {"id": 44, "category": "AI Documentation", "question": "What should be included in AI system documentation?", "options": ["Only the system version number", "Model parameters, data sources, limitations, and intended use", "Just the developer's name", "The cost of the system"], "correct": 1},
-    {"id": 45, "category": "Future of AI", "question": "What are emerging trends in AI development?", "options": ["AI development has stopped", "Multimodal AI, quantum AI, and edge AI", "Only text-based AI will exist", "AI will become less important"], "correct": 1},
-    {"id": 46, "category": "Future of AI", "question": "How might AI evolve in the next decade?", "options": ["It will completely replace humans", "It will become more collaborative, ethical, and specialized", "It will disappear entirely", "It will stay exactly the same"], "correct": 1},
-    {"id": 47, "category": "AI Implementation", "question": "What are key considerations when implementing AI in a business?", "options": ["Only the cost matters", "Technical feasibility, ROI, and organizational readiness", "The color of the UI", "The office location"], "correct": 1},
-    {"id": 48, "category": "AI Implementation", "question": "How can organizations prepare for AI adoption?", "options": ["No preparation is needed", "Training staff, updating processes, and assessing infrastructure", "Just buy the most expensive system", "Ignore all current processes"], "correct": 1},
-    {"id": 49, "category": "AI Success Metrics", "question": "What metrics can measure AI system success?", "options": ["Only look at the cost", "Accuracy, efficiency, user satisfaction, and ROI", "Number of employees replaced", "System color scheme"], "correct": 1},
-    {"id": 50, "category": "AI Success Metrics", "question": "How can organizations track AI implementation progress?", "options": ["No tracking is necessary", "KPIs, user feedback, and performance benchmarks", "Only count the number of users", "Measure office temperature"], "correct": 1}
-]
-
-prompts = [
-    {"id": 1, "prompt_text": "Craft a prompt that instructs an AI to generate a concise summary of various content types—for example, a news article, a multi‑page report, legal documents, customer feedback, research articles, and executive briefings."},
-    {"id": 2, "prompt_text": "Develop a prompt that asks the AI to provide clear definitions of technical or everyday terms and to explain a simple process step‑by‑step."},
-    {"id": 3, "prompt_text": "Write a prompt that guides the AI to produce internal messages—such as a polite email reply and a brief company update—in a professional tone."},
-    {"id": 4, "prompt_text": "Create a prompt that directs the AI to generate a meeting agenda, convert raw meeting minutes into an actionable plan, produce a detailed to‑do list, and suggest follow‑up tasks."},
-    {"id": 5, "prompt_text": "Formulate a prompt that asks you to list everyday work tasks that could be streamlined or improved with AI assistance."},
-    {"id": 6, "prompt_text": "Design a prompt exercise where you compare two different prompt phrasings, reflect on their outcomes, and collaborate with peers to refine your prompts."},
-    {"id": 7, "prompt_text": "Create several versions of a single prompt using varying lengths and compare how the differences affect the AI’s response detail and quality."},
-    {"id": 8, "prompt_text": "Write a prompt that instructs the AI to outline clear project goals and generate a business proposal—including key objectives and strategic approaches."},
-    {"id": 9, "prompt_text": "Take an intentionally vague prompt and rewrite it to be clear, specific, and actionable. Compare the AI’s outputs before and after refinement."},
-    {"id": 10, "prompt_text": "Develop a prompt that asks the AI to list the advantages and disadvantages (pros and cons) of a given business decision."},
-    {"id": 11, "prompt_text": "Craft a prompt that directs the AI to extract key performance metrics from raw data and highlight the most important KPIs."},
-    {"id": 12, "prompt_text": "Design a multi‑step prompt that guides the AI through a sequential process where each step builds on the previous one to solve a problem."},
-    {"id": 13, "prompt_text": "Write a prompt that asks the AI to generate creative content—such as advertising slogans, taglines, or short catchphrases—for a product or campaign."},
-    {"id": 14, "prompt_text": "Create a prompt that can be adapted by changing contextual details and instruct the AI to generate outputs in various tones (e.g., formal, friendly, humorous)."},
-    {"id": 15, "prompt_text": "Craft a prompt that directs the AI to produce a set of frequently asked questions (FAQs) for an internal process and to design a customer feedback survey."},
-    {"id": 16, "prompt_text": "Develop two versions of a prompt—one that includes explicit examples and one that doesn’t—and add negative constraints to steer the AI away from unwanted outputs. Compare the differences."},
-    {"id": 17, "prompt_text": "Write a prompt that instructs the AI to generate a structured outline for a training session and a detailed, step‑by‑step onboarding guide for new hires."},
-    {"id": 18, "prompt_text": "Create a prompt that asks the AI to transform a set of bullet points into a cohesive, flowing narrative paragraph."},
-    {"id": 19, "prompt_text": "Formulate a prompt that leverages “if‑then” conditional logic to generate different outputs based on varying scenarios."},
-    {"id": 20, "prompt_text": "Craft a prompt that instructs the AI to generate a variety of creative brainstorming ideas for a new marketing campaign."},
-    {"id": 21, "prompt_text": "Develop a prompt that asks the AI to produce a set of insightful interview questions tailored for a new role."},
-    {"id": 22, "prompt_text": "Design a prompt that initiates a multi‑turn conversation simulating a customer support interaction, ensuring coherent follow‑up responses."},
-    {"id": 23, "prompt_text": "Write a prompt that encourages the AI to explain its reasoning step‑by‑step while solving a complex technical problem."},
-    {"id": 24, "prompt_text": "Create a prompt that instructs the AI to generate a complete report from raw data—including summaries and visualizations such as charts."},
-    {"id": 25, "prompt_text": "Develop a prompt that directs the AI to assume a specific role (for example, a project manager or consultant) and respond as that persona in a simulated scenario."},
-    {"id": 26, "prompt_text": "Write a prompt that guides the AI to conduct a brainstorming session for product innovation and then generate a strategic roadmap for product development."},
-    {"id": 27, "prompt_text": "Craft a prompt that instructs the AI to develop a full‑scale project proposal complete with detailed timelines, resource allocation, and key milestones."},
-    {"id": 28, "prompt_text": "Create a prompt that asks the AI to translate complex technical documentation or industry jargon into clear, accessible language."},
-    {"id": 29, "prompt_text": "Develop a prompt that instructs the AI to propose multiple alternative strategies for solving a specific business challenge."},
-    {"id": 30, "prompt_text": "Write a multi‑step prompt that guides the AI to integrate financial data for forecasting purposes and to analyze company data to predict future sales trends."},  # Added in previous turn
-    {"id": 31, "prompt_text": "Design a series of interconnected prompts where the output of one prompt serves as the input for the next, forming a complete workflow for a complex task."},
-    {"id": 32, "prompt_text": "Craft a prompt that directs the AI to analyze current market trends and perform a competitor analysis—complete with visual elements like comparison charts."},
-    {"id": 33, "prompt_text": "Develop a prompt that simulates a crisis scenario, asks the AI to perform a detailed risk assessment, and then structure a comprehensive business continuity plan."},
-    {"id": 34, "prompt_text": "Create a prompt that instructs the AI to design a detailed customer journey map and generate multiple scenario‑based responses for customer service situations."},
-    {"id": 35, "prompt_text": "Write a prompt that asks the AI to generate several versions of a sales pitch and, based on provided KPIs, to offer strategic recommendations for improvement."},
-    {"id": 36, "prompt_text": "Develop a prompt that guides the AI to outline a comprehensive internal communication strategy for an organization."},
-    {"id": 37, "prompt_text": "Craft a prompt that instructs the AI to generate detailed training materials for new hires, develop a complete digital marketing strategy, and outline a plan for digital transformation initiatives (including an AI adoption training roadmap)."},
-    {"id": 38, "prompt_text": "Write a prompt that simulates both a negotiation dialogue for contract discussions and a strategic leadership roundtable discussion or decision‑making scenario."},
-    {"id": 39, "prompt_text": "Develop a prompt that instructs the AI to perform a comparative analysis between multiple items, ideas, or strategies."},
-    {"id": 40, "prompt_text": "Craft a prompt that directs the AI to conduct a detailed SWOT analysis and synthesize industry research into actionable insights—possibly culminating in an executive briefing on emerging trends."},
-    {"id": 41, "prompt_text": "Create a prompt tailored for departments by instructing the AI to generate candidate screening questions for HR and analyze budget reports for the finance team."},
-    {"id": 42, "prompt_text": "Develop a prompt that assists the marketing team in generating creative campaign ideas (including a multi‑month marketing calendar) and supports the IT department in diagnosing common system issues."},
-    {"id": 43, "prompt_text": "Write a prompt that simulates interdepartmental project planning and instructs the AI to synthesize cross‑departmental feedback into a unified action plan."},
-    {"id": 44, "prompt_text": "Craft a prompt that directs the AI to generate detailed customer personas from survey data and to create customized training content for different teams."},
-    {"id": 45, "prompt_text": "Develop a prompt that asks the AI to produce a detailed compliance checklist for regulatory requirements and to generate performance review templates for managers."},
-    {"id": 46, "prompt_text": "Write a prompt that instructs the AI to identify potential solutions for process bottlenecks and to generate a detailed diagram of an operational workflow."},
-    {"id": 47, "prompt_text": "Create a prompt that guides the AI to draft a press release or public communication and to develop a customized crisis communication plan."},
-    {"id": 48, "prompt_text": "Develop a prompt that directs the AI to analyze customer data to produce actionable insights and to generate innovative strategies for improving customer retention."},
-    {"id": 49, "prompt_text": "Write a capstone prompt that instructs the AI to produce a comprehensive market entry strategy for a new product or service and to design a full‑scale, multi‑phase project plan covering planning, execution, and review."},
-    {"id": 50, "prompt_text": "Craft a prompt that asks the AI to develop an executive-level briefing that outlines digital transformation initiatives, including a strategic plan and detailed project timelines."}
-]
-
-
+# Load questions and prompts from JSON files
+def load_json_data():
+    with open('questions.json', 'r') as f:
+        questions = json.load(f)
+    with open('prompts.json', 'r') as f:
+        prompts = json.load(f)
+    return questions, prompts
 
 # Routes for progress tracking
 @app.route('/submit_answer', methods=['POST'])
@@ -517,7 +455,8 @@ def get_question():
             "success": True,
             "question": questions[index],
             "total": len(questions),
-            "prompt_task": prompts[index]['prompt_text'] if index < len(prompts) else None
+            "prompt_task": prompts[index]['prompt_text'] if index < len(prompts) else None,
+            "department": prompts[index]['department'] if index < len(prompts) else None
         })
     return jsonify({"success": False, "message": "Question not found"})
 
@@ -638,33 +577,35 @@ def get_all_prompts():
 def get_student_by_id(user_id):
     db = get_db()
     student = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-    db.close()
-    return student
+    return student  # Remove db.close() to let Flask handle connection lifecycle
 
 def get_progress_for_student(user_id):
-    db = get_db()
-    progress = db.execute('''
-        SELECT
-            sp.*,
-            q.question,
-            q.category,
-            datetime(sp.created_at) as created_at,
-            p.prompt_text
-        FROM student_progress sp
-        LEFT JOIN questions q ON q.id = sp.question_id
-        LEFT JOIN prompts p ON p.id = sp.prompt_id
-        WHERE sp.user_id = ?
-        ORDER BY sp.created_at DESC
-    ''', (user_id,)).fetchall()
-    db.close()
-     # Convert progress to a list of dictionaries *and* decode HTML entities
-    progress_dicts = []
-    for row in progress:
-        row_dict = dict(row)  # Convert the Row object to a dictionary
-        if row_dict['generated_response']:
-            row_dict['generated_response'] = html.unescape(row_dict['generated_response'])
-        progress_dicts.append(row_dict)
-    return progress_dicts
+    try:
+        db = get_db()
+        progress = db.execute('''
+            SELECT
+                sp.*,
+                q.question,
+                q.category,
+                datetime(sp.created_at) as created_at,
+                p.prompt_text
+            FROM student_progress sp
+            LEFT JOIN questions q ON q.id = sp.question_id
+            LEFT JOIN prompts p ON p.id = sp.prompt_id
+            WHERE sp.user_id = ?
+            ORDER BY sp.created_at DESC
+        ''', (user_id,)).fetchall()
+        # Convert progress to a list of dictionaries *and* decode HTML entities
+        progress_dicts = []
+        for row in progress:
+            row_dict = dict(row)  # Convert the Row object to a dictionary
+            if row_dict['generated_response']:
+                row_dict['generated_response'] = html.unescape(row_dict['generated_response'])
+            progress_dicts.append(row_dict)
+        return progress_dicts
+    except Exception as e:
+        app.logger.error(f"Database error in get_progress_for_student: {str(e)}")
+        raise
 
 def get_tutor_history_for_student(user_id):
     db = get_db()
